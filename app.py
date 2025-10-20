@@ -62,7 +62,9 @@ if pdf_file:
                         for chunk in chunks:
                             tts = gTTS(text=chunk, lang='en')
                             tts.write_to_fp(tmp_file)
+                            time.sleep(1)  # ⏱️ Delay between requests to avoid 429 error
                         audio_path = tmp_file.name
+
 
                     st.success("✅ Audio generated successfully!")
                     st.audio(audio_path, format="audio/mp3")
