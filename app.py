@@ -4,6 +4,11 @@ from gtts import gTTS
 import tempfile
 import time
 
+import textwrap
+
+def split_text(text, max_chars=4000):
+    return textwrap.wrap(text, max_chars)
+
 st.set_page_config(page_title="PDF to Audio", page_icon="🎧")
 
 st.title("🎧 PDF to Audio Converter")
@@ -48,9 +53,20 @@ if pdf_file:
             st.warning("⚠️ No readable text found in the PDF.")
         else:
             with st.spinner("🎧 Generating audio... please wait..."):
-                tts = gTTS(text=full_text, lang='en')
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
-                    tts.save(tmp_file.name)
-                    audio_file = tmp_file.name
-            st.success("✅ Audio generated successfully!")
-            st.audio(audio_file, format="audio/mp3")
+                audio_path = None
+                try:
+                    # Split text into chunks (gTTS can't handle very long strings)
+                    chunks = split_text(full_text)
+
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
+                        for chunk in chunks:
+                            tts = gTTS(text=chunk, lang='en')
+                            tts.write_to_fp(tmp_file)
+                        audio_path = tmp_file.name
+
+                    st.success("✅ Audio generated successfully!")
+                    st.audio(audio_path, format="audio/mp3")
+                except Exception as e:
+                    st.error("❌ Failed to generate audio. Try again with a smaller or simpler PDF.")
+                    st.exception(e)
+
