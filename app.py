@@ -67,10 +67,10 @@ if pdf_file:
                 for i, chunk in enumerate(text_chunks):
                     try:
                         # Generate audio for each chunk in memory
-                        tts = gTTS(text=chunk, lang='en')
+                        tts = gTTS(text=chunk, lang='bn') # Changed 'en' to 'bn' for Bangla
                         audio_fp = io.BytesIO()
                         tts.write_to_fp(audio_fp)
-                        audio_fp.seek(0) # Go to the beginning of the in-memory file
+                        audio_fp.seek(0)
 
                         st.write(f"**Part {i + 1} / {len(text_chunks)}**")
                         st.audio(audio_fp, format="audio/mp3")
