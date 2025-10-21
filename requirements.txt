@@ -1,3 +1,8 @@
 streamlit
-PyPDF2
+PyMuPDF
 gTTS
+transformers
+sentence-transformers
+faiss-cpu
+torch
+langchain
