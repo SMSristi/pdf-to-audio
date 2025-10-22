@@ -169,7 +169,7 @@ if uploaded_file and google_api_key:
                     st.subheader("💡 Answer:")
                     st.write(f"> {answer_text}")
 
-                    tts_answer = gTTS(text=answer_text, lang='en')
+                    tts_answer = gTTS(text=answer_text, lang='bn')
                     audio_fp_answer = io.BytesIO()
                     tts_answer.write_to_fp(audio_fp_answer)
                     audio_fp_answer.seek(0)
