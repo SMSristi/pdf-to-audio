@@ -1,9 +1,8 @@
-streamlit
-google-cloud-vision
+easyocr
 pdf2image
-Pillow
-gTTS
+streamlit
 transformers
-sentence-transformers
 faiss-cpu
+sentence-transformers
+gtts
 torch

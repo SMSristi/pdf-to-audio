@@ -1,5 +1,5 @@
 import streamlit as st
-from google.cloud import vision
+import easyocr
 from pdf2image import convert_from_bytes
 from transformers import pipeline
 import faiss
@@ -9,48 +9,46 @@ from gtts import gTTS
 import io
 import textwrap
 
-# --- Cloud Vision OCR for Bengali ---
+
+# --- EasyOCR for Bengali (FREE - No API Key Needed) ---
+
+@st.cache_resource
+def load_ocr_reader():
+    """Load EasyOCR reader (cached to avoid reloading)"""
+    return easyocr.Reader(['bn', 'en'], gpu=False)
+
 
 @st.cache_data
-def extract_text_with_cloud_vision(pdf_file_contents, api_key):
+def extract_text_with_easyocr(pdf_file_contents):
     """
-    Uses Google Cloud Vision API for highly accurate Bengali text extraction.
+    Uses EasyOCR for free Bengali text extraction.
     """
-    # Set up the client with API key
-    client = vision.ImageAnnotatorClient(
-        client_options={"api_key": api_key}
-    )
+    reader = load_ocr_reader()
     
     # Convert PDF to images
     images = convert_from_bytes(pdf_file_contents)
     
     full_text = ""
     for i, img in enumerate(images):
-        # Convert PIL image to bytes
-        img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='PNG')
-        img_byte_arr.seek(0)
+        # Convert PIL image to numpy array
+        img_array = np.array(img)
         
-        # Create vision image object
-        image = vision.Image(content=img_byte_arr.getvalue())
+        # Perform OCR (detail=0 returns only text, not coordinates)
+        results = reader.readtext(img_array, detail=0, paragraph=True)
         
-        # Perform OCR with Bengali language hint
-        response = client.document_text_detection(
-            image=image,
-            image_context={"language_hints": ["bn"]}  # Bengali language hint
-        )
-        
-        # Extract text
-        if response.full_text_annotation.text:
-            full_text += response.full_text_annotation.text + "\n"
+        # Join results
+        page_text = " ".join(results)
+        full_text += page_text + "\n"
         
         st.write(f"✓ Processed page {i+1}/{len(images)}")
     
     return full_text
 
+
 @st.cache_data
 def chunk_text_for_reader(text, max_chars=4000):
     return textwrap.wrap(text, max_chars, break_long_words=True, replace_whitespace=False)
+
 
 @st.cache_data
 def chunk_text_for_rag(text, chunk_size=1000, overlap=100):
@@ -73,6 +71,7 @@ def chunk_text_for_rag(text, chunk_size=1000, overlap=100):
     
     return chunks
 
+
 @st.cache_resource
 def setup_rag_pipeline(chunks):
     embedder = SentenceTransformer('all-MiniLM-L6-v2')
@@ -81,11 +80,13 @@ def setup_rag_pipeline(chunks):
     index.add(np.array(embeddings).astype('float32'))
     return index, embedder
 
+
 @st.cache_data
 def search_in_pdf(_index, _embedder, question, _chunks, k=3):
     question_embedding = _embedder.encode([question])
     _, I = _index.search(np.array(question_embedding).astype('float32'), k)
     return [_chunks[i] for i in I[0]]
+
 
 # --- Streamlit App UI ---
 
@@ -94,21 +95,15 @@ st.set_page_config(page_title="AI PDF Assistant", page_icon="🤖", layout="wide
 st.title("🤖 AI PDF Assistant for Bengali Documents")
 st.markdown("Upload a Bengali PDF to listen to it or ask questions about it.")
 
-# API Key input (secure)
-with st.sidebar:
-    st.header("Configuration")
-    google_api_key = st.text_input("Google Cloud Vision API Key", type="password")
-    st.caption("Get your free API key from: [Google Cloud Console](https://console.cloud.google.com/)")
-
 uploaded_file = st.file_uploader("Upload your PDF document", type="pdf")
 
-if uploaded_file and google_api_key:
-    with st.spinner("📚 Analyzing your document with Google Cloud Vision..."):
+if uploaded_file:
+    with st.spinner("📚 Analyzing your document with EasyOCR..."):
         file_contents = uploaded_file.getvalue()
         
         try:
-            # Extract text using Google Cloud Vision
-            full_text = extract_text_with_cloud_vision(file_contents, google_api_key)
+            # Extract text using EasyOCR (FREE)
+            full_text = extract_text_with_easyocr(file_contents)
             
             # Chunk text for both features
             reader_chunks = chunk_text_for_reader(full_text)
@@ -121,7 +116,6 @@ if uploaded_file and google_api_key:
             
         except Exception as e:
             st.error(f"❌ Error: {e}")
-            st.info("💡 Make sure your API key is correct and the Vision API is enabled.")
             st.stop()
     
     # Preview extracted text
@@ -176,6 +170,3 @@ if uploaded_file and google_api_key:
                     st.audio(audio_fp_answer, format="audio/mp3")
                 except Exception as e:
                     st.error(f"❌ Could not generate answer: {e}")
-
-elif uploaded_file and not google_api_key:
-    st.warning("⚠️ Please enter your Google Cloud Vision API Key in the sidebar.")
