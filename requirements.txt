@@ -1,9 +1,10 @@
+streamlit
 easyocr
 pdf2image
-streamlit
 transformers
-faiss-cpu
-sentence-transformers
-gtts
 torch
+faiss-cpu
+numpy
+sentence-transformers
+scipy
 Pillow
